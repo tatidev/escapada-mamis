@@ -169,6 +169,32 @@ const ProposalCard = ({ proposal, myVote, allVotes, onVote, loading }) => {
                     )}
                 </button>
 
+                {proposal.link && (
+                    <a
+                        href={proposal.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                            padding: '10px 14px',
+                            borderRadius: 12,
+                            background: '#f3f4f6',
+                            border: '1px solid #e5e7eb',
+                            color: '#374151',
+                            fontWeight: 600,
+                            fontSize: 13,
+                            textDecoration: 'none',
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        🔗 Ver sitio
+                    </a>
+                )}
+
                 {/* Vote count bubble */}
                 <div
                     style={{
