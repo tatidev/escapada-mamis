@@ -64,5 +64,16 @@ export const proposals = [
         distance: '1000 km',
         bestTime: 'Marzo - Mayo',
         images: ['/images/lujancuyo-1.webp', '/images/lujancuyo-2.jpg']
+    },
+    {
+        id: 6,
+        name: 'Camping en Villa Gesell',
+        region: 'Buenos Aires',
+        description: 'Lindo lugar para ir de camping y tomar vino barato',
+        highlights: ['Lopez', 'San Felipe tinto', 'Comer en la jirafa'],
+        duration: '3 días / 2 noches',
+        distance: '400 km',
+        bestTime: 'Todo el año',
+        images: ['/images/gesell-2.jpg', '/images/gesell-1.jpg']
     }
 ];
