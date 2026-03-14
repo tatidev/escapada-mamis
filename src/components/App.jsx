@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Wine, MapPin, Clock, Car, ChevronRight, ChevronLeft, Star, CircleCheck as CheckCircle, Vote, ChartBar as BarChart3, Users, CircleUser as UserCircle2, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-
-const USERS = ['Agostina', 'Alejandra', 'Marie', 'Andrea'];
+import { proposals } from '../data/proposals';
+import { USERS } from '../data/users';
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [showUserSelect, setShowUserSelect] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
   const [touchEndX, setTouchEndX] = useState(null);
+  const swipeRef = useRef(null);
   const [myVote, setMyVote] = useState(null);
   const [allVotes, setAllVotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,17 @@ const App = () => {
       }
     }
   }, []);
+
+  // Cicla imágenes del destino activo cada 3 segundos
+  useEffect(() => {
+    setImageIndex(0);
+    const proposal = proposals[activeSlide];
+    if (!proposal || proposal.images.length <= 1) return;
+    const interval = setInterval(() => {
+      setImageIndex(prev => (prev + 1) % proposal.images.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeSlide]);
 
   useEffect(() => {
     if (currentUser) {
@@ -63,74 +76,6 @@ const App = () => {
     setActiveSlide(0);
   };
 
-  const proposals = [
-    {
-      id: 0,
-      name: 'Valle de Uco',
-      region: 'Mendoza',
-      description: 'Viñedos de altura con vistas a la Cordillera de los Andes',
-      highlights: ['Bodegas boutique', 'Gastronomía andina', 'Trekking en montaña'],
-      duration: '3 días / 2 noches',
-      distance: '1100 km',
-      bestTime: 'Marzo - Mayo',
-      image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg'
-    },
-    {
-      id: 1,
-      name: 'Cafayate',
-      region: 'Salta',
-      description: 'Capital del vino argentino con bodegas de altura y paisajes únicos',
-      highlights: ['Torrontés premium', 'Quebrada de las Conchas', 'Arquitectura colonial'],
-      duration: '4 días / 3 noches',
-      distance: '1600 km',
-      bestTime: 'Marzo - Junio',
-      image: 'https://images.pexels.com/photos/1639562/pexels-photo-1639562.jpeg'
-    },
-    {
-      id: 2,
-      name: 'San Rafael',
-      region: 'Mendoza',
-      description: 'Oasis vitivinícola con aventuras en Cañón del Atuel',
-      highlights: ['Rafting y aventura', 'Bodegas tradicionales', 'Dique y lagos'],
-      duration: '3 días / 2 noches',
-      distance: '800 km',
-      bestTime: 'Marzo - Abril',
-      image: 'https://images.pexels.com/photos/1408221/pexels-photo-1408221.jpeg'
-    },
-    {
-      id: 3,
-      name: 'Colonia Caroya',
-      region: 'Córdoba',
-      description: 'Tradición italiana con vinos artesanales y gastronomía única',
-      highlights: ['Festival del salame', 'Bodegas familiares', 'Cultura italiana'],
-      duration: '2 días / 1 noche',
-      distance: '150 km',
-      bestTime: 'Todo el año',
-      image: 'https://images.pexels.com/photos/1407846/pexels-photo-1407846.jpeg'
-    },
-    {
-      id: 4,
-      name: 'Villa General Belgrano',
-      region: 'Córdoba',
-      description: 'Pueblo alemán con cervecerías artesanales y ambiente alpino',
-      highlights: ['Oktoberfest', 'Cerveza artesanal', 'Arquitectura alemana'],
-      duration: '2 días / 1 noche',
-      distance: '100 km',
-      bestTime: 'Todo el año',
-      image: 'https://images.pexels.com/photos/1552630/pexels-photo-1552630.jpeg'
-    },
-    {
-      id: 5,
-      name: 'Luján de Cuyo',
-      region: 'Mendoza',
-      description: 'Cuna del Malbec argentino con bodegas de renombre mundial',
-      highlights: ['Malbec de excelencia', 'Bodegas icónicas', 'Alta gastronomía'],
-      duration: '3 días / 2 noches',
-      distance: '1000 km',
-      bestTime: 'Marzo - Mayo',
-      image: 'https://images.pexels.com/photos/1283219/pexels-photo-1283219.jpeg'
-    }
-  ];
 
   const handleVote = async (destinationId) => {
     if (!currentUser) return;
@@ -196,6 +141,48 @@ const App = () => {
     setTouchStartX(null);
     setTouchEndX(null);
   };
+
+  // Attach native touch listeners (passive:false) so we can preventDefault on horizontal swipes
+  useEffect(() => {
+    const el = swipeRef.current;
+    if (!el) return;
+
+    let startX = 0;
+    let startY = 0;
+
+    const onStart = (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+
+    const onMove = (e) => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      // Solo bloqueamos scroll si el movimiento es principalmente horizontal
+      if (Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault();
+      }
+    };
+
+    const onEnd = (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+        if (dx < 0) nextSlide();
+        else prevSlide();
+      }
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+    };
+  }, [activeSlide]);
 
   const getVoteCount = (destinationId) => {
     return allVotes.filter(v => v.destination_id === destinationId).length;
@@ -302,11 +289,10 @@ const App = () => {
                   <button
                     key={index}
                     onClick={() => setActiveSlide(index)}
-                    className={`h-2 rounded-full transition-all ${
-                      activeSlide === index
-                        ? 'w-8 bg-gradient-to-r from-purple-500 to-pink-500'
-                        : 'w-2 bg-gray-300'
-                    }`}
+                    className={`h-2 rounded-full transition-all ${activeSlide === index
+                      ? 'w-8 bg-gradient-to-r from-purple-500 to-pink-500'
+                      : 'w-2 bg-gray-300'
+                      }`}
                   />
                 ))}
               </div>
@@ -321,10 +307,8 @@ const App = () => {
             </div>
 
             <div
+              ref={swipeRef}
               className="overflow-hidden"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
             >
               {isResultsSlide ? (
                 <div className="p-6 min-h-[500px]">
@@ -390,6 +374,21 @@ const App = () => {
                               }}
                             />
                           </div>
+
+                          <button
+                            onClick={() => handleVote(proposal.id)}
+                            disabled={loading}
+                            className={`mt-3 w-full py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${myVote === proposal.id
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {myVote === proposal.id ? (
+                              <><CheckCircle className="w-4 h-4" /> ¡Tu voto!</>
+                            ) : (
+                              <><Vote className="w-4 h-4" /> Votar</>
+                            )}
+                          </button>
                         </div>
                       ))}
                   </div>
@@ -399,11 +398,15 @@ const App = () => {
                   {proposals[activeSlide] && (
                     <div className="space-y-6">
                       <div className="relative h-64 rounded-xl overflow-hidden">
-                        <img
-                          src={proposals[activeSlide].image}
-                          alt={proposals[activeSlide].name}
-                          className="w-full h-full object-cover"
-                        />
+                        {proposals[activeSlide].images.map((src, i) => (
+                          <img
+                            key={src}
+                            src={src}
+                            alt={proposals[activeSlide].name}
+                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${i === imageIndex ? 'opacity-100' : 'opacity-0'
+                              }`}
+                          />
+                        ))}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-4 left-4 text-white">
                           <h2 className="text-3xl font-bold mb-1">
@@ -465,11 +468,10 @@ const App = () => {
                       <button
                         onClick={() => handleVote(proposals[activeSlide].id)}
                         disabled={loading}
-                        className={`w-full py-4 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 ${
-                          myVote === proposals[activeSlide].id
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                            : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        className={`w-full py-4 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 ${myVote === proposals[activeSlide].id
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                          : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         {loading ? (
                           'Votando...'
